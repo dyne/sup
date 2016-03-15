@@ -42,9 +42,11 @@ static char *getpath(const char *str) {
     return NULL;
 }
 
+#define MAXCMD 512
+
 int main(int argc, char **argv) {
 
-    const char *cmd;
+    char cmd[MAXCMD];
     int i, uid, gid, ret;
 
     if (argc < 2 || !strcmp (argv[1], "-h"))
@@ -63,6 +65,8 @@ int main(int argc, char **argv) {
     uid = getuid ();
     gid = getgid ();
 
+    snprintf(cmd,MAXCMD,"%s",argv[1]);
+    fprintf(stderr,"execv: %s\n",cmd);
     for (i = 0; rules[i].cmd != NULL; i++) {
         if (*rules[i].cmd=='*' || !strcmp (argv[1], rules[i].cmd)) {
 #if ENFORCE
@@ -95,7 +99,7 @@ int main(int argc, char **argv) {
                 if (chdir (CHRDIR) == -1)
                     return die (1, "chdir", strerror (errno));
 #endif
-            ret = execv (cmd, argv+1);
+            ret = execv (cmd, &argv[1]);
             return die (ret, "execv", strerror (errno));
         }
     }
