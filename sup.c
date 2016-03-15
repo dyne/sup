@@ -46,7 +46,7 @@ static char *getpath(const char *str) {
 
 int main(int argc, char **argv) {
 
-    char cmd[MAXCMD];
+    static char cmd[MAXCMD];
     int i, uid, gid, ret;
 
     if (argc < 2 || !strcmp (argv[1], "-h"))
@@ -66,21 +66,21 @@ int main(int argc, char **argv) {
     gid = getgid ();
 
     snprintf(cmd,MAXCMD,"%s",argv[1]);
-    fprintf(stderr,"execv: %s\n",cmd);
+    // fprintf(stderr,"execv: %s\n",cmd);
     for (i = 0; rules[i].cmd != NULL; i++) {
         if (*rules[i].cmd=='*' || !strcmp (argv[1], rules[i].cmd)) {
 #if ENFORCE
             struct stat st;
             if (*rules[i].path=='*') {
                 if (*argv[1]=='.' || *argv[1]=='/')
-                    cmd = argv[1];
-                else if (!(cmd = getpath (argv[1])))
+                    snprintf(cmd,MAXCMD,"%s",argv[1]);
+                else if (snprintf(cmd,MAXCMD,"%s",getpath(argv[1]))<0)
                     return die (1, "execv", "cannot find program");
-            } else cmd = rules[i].path;
+            } else snprintf(cmd,MAXCMD,"%s",rules[i].path);
             if (lstat (cmd, &st) == -1)
                 return die (1, "lstat", "cannot stat program");
-            if (st.st_mode & 0222)
-                return die (1, "stat", "cannot run writable binaries.");
+            /* if (st.st_mode & 0222) */
+            /*     return die (1, "stat", "cannot run writable binaries."); */
 #endif
             if (uid != SETUID && rules[i].uid != -1 && rules[i].uid != uid)
                 return die (1, "urule", "user does not match");
