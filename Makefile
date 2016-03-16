@@ -6,12 +6,32 @@ VERSION=0.2
 USER=root
 GROUP=root
 
-CFLAGS?=-fPIC -fPIE -Wall
-LDFLAGS?=-fPIC -fPIE -pie
+CFLAGS?=-Os -O2
 
-CFLAGS+=-Os -O2
+musl: musl=/usr/local/musl
+musl: CC=/usr/local/musl/bin/musl-gcc
+musl: CFLAGS+=-I${musl}/include
+musl: LDFLAGS+=-static ${musl}/lib/libc.a
+musl: config.h sup.o sha256.o
+	${CC} ${LDFLAGS} sup.o sha256.o -o sup
 
-all: config.h sup
+shared: CFLAGS+=-fPIC -fPIE -Wall
+shared: LDFLAGS=-fPIC -fPIE -pie -lcrypto
+shared: config.h sup
+
+
+static: CFLAGS+=-DSTATIC=1
+static: LDFLAGS=libressl/crypto/libcrypto.a -static-libgcc
+static: config.h sup
+
+test: CC=colorgcc
+test: CFLAGS+=--std=gnu99
+test: LDFLAGS=-lcrypto -lm
+test: test.o sha256.o
+	${CC} ${LDFLAGS} test.o sha256.o -o test
+
+
+all: shared
 
 config.h:
 	cp config.def.h config.h
@@ -22,8 +42,12 @@ sup.o: config.h sup.c
 sup: sup.o
 	${CC} ${LDFLAGS} sup.o -o sup
 
+debug: CFLAGS+=-ggdb
+debug: sup.o
+	${CC} ${LDFLAGS} sup.o -o sup
+
 clean:
-	rm -f sup.o sup
+	rm -f *.o sup test
 
 mrproper: clean
 	rm -f config.h
