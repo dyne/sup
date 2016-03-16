@@ -34,12 +34,6 @@
 #include <pwd.h>
 
 
-#define HELP "sup [-hlv] [cmd ..]"
-
-#define MAXCMD 512
-
-#define MAXBINSIZE 10485760 // 10 MiBs
-
 struct rule_t {
     int uid;
     int gid;
@@ -51,9 +45,14 @@ struct rule_t {
 #include "config.h"
 
 #ifdef HASH
-#include <openssl/sha.h>
-#include <stddef.h>
+#include "sha256.h"
 #endif
+
+#define HELP "sup [-hlv] [cmd ..]"
+
+#define MAXCMD 512
+
+#define MAXBINSIZE 10485760 // 10 MiBs
 
 static int error(int ret, const char *org, const char *str) {
     fprintf (stderr, "%s%s%s\n", org?org:"", org?": ":"", str);
@@ -82,17 +81,16 @@ static char *getpath(const char *str) {
 int main(int argc, char **argv) {
 
     static char cmd[MAXCMD];
-    struct passwd *pw;
+    struct passwd *pw = NULL;
     int i, uid, gid, ret;
 
 #ifdef HASH
     FILE *fd;
-    char *buf;
+    unsigned char *buf;
     size_t len;
+    sha256_context sha;
 
-    SHA256_CTX sha256;
-    SHA256_Init(&sha256);
-    unsigned char hash[SHA256_DIGEST_LENGTH];
+    unsigned char digest[32];
     char output[65];
 #endif
 
@@ -112,13 +110,22 @@ int main(int argc, char **argv) {
         fprintf(stdout,"User\tUID\tGID\t%10s%25s\n",
                 "Command","Forced PATH");
         for (i = 0; rules[i].cmd != NULL; i++) {
+#ifndef STATIC
+            /* Using 'getpwuid' in statically linked applications
+               requires at runtime the shared libraries from the glibc
+               version used for linking */
             pw = getpwuid( rules[i].uid );
+#endif
             fprintf (stdout, "%s\t%d\t%d%16s%25s\n",
-                     pw->pw_name, rules[i].uid, rules[i].gid,
+                     pw?pw->pw_name:"", rules[i].uid, rules[i].gid,
                      rules[i].cmd, rules[i].path);
         }
         fprintf(stdout,"\nFlags: %s %s %s %s\n",
+#ifdef HASH
                 HASH?"HASH":"",
+#else
+                "",
+#endif
                 ENFORCE?"ENFORCE":"",
                 strlen(CHROOT)?"CHROOT":"",
                 strlen(CHRDIR)?"CHRDIR":"");
@@ -128,13 +135,14 @@ int main(int argc, char **argv) {
     uid = getuid ();
     gid = getgid ();
     // get the username string from /etc/passwd
+#ifndef STATIC
     pw = getpwuid( uid );
-
+#endif
     // copy the execv argument locally
     snprintf(cmd,MAXCMD,"%s",argv[1]);
 
     fprintf(stderr,"sup %s called by %s(%d) gid(%d)\n",
-            cmd, pw->pw_name, uid, gid);
+            cmd, pw?pw->pw_name:"", uid, gid);
 
     for (i = 0; rules[i].cmd != NULL; i++) {
 
@@ -192,12 +200,14 @@ int main(int argc, char **argv) {
                     error(1, "fread", "cannot read from binary file");
                     free(buf); fclose(fd); }
 
-                SHA256_Update(&sha256, buf, len);
-                SHA256_Final(hash, &sha256);
+                sha256_starts(&sha);
+                sha256_update(&sha, buf, (uint32)len);
+                sha256_finish(&sha, digest);
 
-                for(c = 0; c < SHA256_DIGEST_LENGTH; c++)
-                    sprintf(output + (c * 2), "%02x", (unsigned char)hash[c]);
+                for(c = 0; c<32; c++)
+                    sprintf(output + (c * 2),"%02x",digest[c]);
                 output[64] = '\0';
+
                 if(strncmp(rules[i].hash, output, 64)!=0) {
                     fprintf(stderr,"%s\n%s\n", rules[i].hash, output);
                     return error (1, "hash", "hash does not match");
