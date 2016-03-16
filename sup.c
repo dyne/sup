@@ -1,4 +1,27 @@
-/* pancake <nopcode.org> -- Copyleft 2009-2011 */
+/*  sup 0.3
+ *
+ *  (c) 2016 Dyne.org Foundation, Amsterdam
+ *
+ *  Written by:
+ *  2009-2011 pancake <nopcode.org>         (first author)
+ *  2016      Denis Roio <jaromil@dyne.org> (current maintainer)
+ *
+ * This source code is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Public License as published
+ * by the Free Software Foundation; either version 3 of the License,
+ * or (at your option) any later version.
+ *
+ * This source code is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Please refer to the GNU Public License for more details.
+ *
+ * You should have received a copy of the GNU Public License along with
+ * this source code; if not, write to:
+ * Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ */
+
 
 #include <errno.h>
 #include <unistd.h>
@@ -10,18 +33,27 @@
 #include <sys/types.h>
 #include <pwd.h>
 
+
 #define HELP "sup [-hlv] [cmd ..]"
 
 #define MAXCMD 512
+
+#define MAXBINSIZE 10485760 // 10 MiBs
 
 struct rule_t {
     int uid;
     int gid;
     const char *cmd;
     const char *path;
+    const char *hash;
 };
 
 #include "config.h"
+
+#ifdef HASH
+#include <openssl/sha.h>
+#include <stddef.h>
+#endif
 
 static int error(int ret, const char *org, const char *str) {
     fprintf (stderr, "%s%s%s\n", org?org:"", org?": ":"", str);
@@ -53,6 +85,17 @@ int main(int argc, char **argv) {
     struct passwd *pw;
     int i, uid, gid, ret;
 
+#ifdef HASH
+    FILE *fd;
+    char *buf;
+    size_t len;
+
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    char output[65];
+#endif
+
     if (argc < 2 || !strncmp (argv[1], "-h", 2)) {
         fprintf(stdout, "%s\n", HELP);
         return (0);
@@ -71,11 +114,11 @@ int main(int argc, char **argv) {
         for (i = 0; rules[i].cmd != NULL; i++) {
             pw = getpwuid( rules[i].uid );
             fprintf (stdout, "%s\t%d\t%d%16s%25s\n",
-                    pw->pw_name, rules[i].uid,
-                    rules[i].gid,
-                    rules[i].cmd, rules[i].path);
+                     pw->pw_name, rules[i].uid, rules[i].gid,
+                     rules[i].cmd, rules[i].path);
         }
-        fprintf(stdout,"\nFlags: %s %s %s\n",
+        fprintf(stdout,"\nFlags: %s %s %s %s\n",
+                HASH?"HASH":"",
                 ENFORCE?"ENFORCE":"",
                 strlen(CHROOT)?"CHROOT":"",
                 strlen(CHRDIR)?"CHRDIR":"");
@@ -94,7 +137,9 @@ int main(int argc, char **argv) {
             cmd, pw->pw_name, uid, gid);
 
     for (i = 0; rules[i].cmd != NULL; i++) {
+
         if (*rules[i].cmd=='*' || !strcmp (argv[1], rules[i].cmd)) {
+
 #if ENFORCE
             struct stat st;
             if (*rules[i].path=='*') {
@@ -108,6 +153,7 @@ int main(int argc, char **argv) {
             if (st.st_mode & 0022)
                 return error (1, "stat", "cannot run binaries others can write.");
 #endif
+
             if (uid != SETUID && rules[i].uid != -1 && rules[i].uid != uid)
                 return error (1, "urule", "user does not match");
 
@@ -117,6 +163,7 @@ int main(int argc, char **argv) {
             if (setuid (SETUID) == -1 || setgid (SETGID) == -1 ||
                 seteuid (SETUID) == -1 || setegid (SETGID) == -1)
                 return error (1, "set[e][ug]id", strerror (errno));
+
 #ifdef CHROOT
             if (*CHROOT)
                 if (chdir (CHROOT) == -1 || chroot (".") == -1)
@@ -124,6 +171,38 @@ int main(int argc, char **argv) {
             if (*CHRDIR)
                 if (chdir (CHRDIR) == -1)
                     return error (1, "chdir", strerror (errno));
+#endif
+
+#ifdef HASH
+            if( strlen(rules[i].hash) ) {
+                int c;
+
+                if(st.st_size>MAXBINSIZE)
+                    error(1, "binsize", "cannot check hash of file, size too large");
+
+                fd = fopen(cmd,"r");
+                if(!fd) error(1, "fopen", "cannot read binary file");
+
+                buf = malloc(st.st_size);
+                if(!buf) error(1, "malloc", "cannot allocate memory");
+
+
+                len = fread(buf,1,st.st_size,fd);
+                if(len != st.st_size) {
+                    error(1, "fread", "cannot read from binary file");
+                    free(buf); fclose(fd); }
+
+                SHA256_Update(&sha256, buf, len);
+                SHA256_Final(hash, &sha256);
+
+                for(c = 0; c < SHA256_DIGEST_LENGTH; c++)
+                    sprintf(output + (c * 2), "%02x", (unsigned char)hash[c]);
+                output[64] = '\0';
+                if(strncmp(rules[i].hash, output, 64)!=0) {
+                    fprintf(stderr,"%s\n%s\n", rules[i].hash, output);
+                    return error (1, "hash", "hash does not match");
+                }
+            }
 #endif
             ret = execv (cmd, &argv[1]);
             return error (ret, "execv", strerror (errno));

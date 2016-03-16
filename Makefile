@@ -6,10 +6,11 @@ VERSION=0.2
 USER=root
 GROUP=root
 
-CFLAGS?=-fPIC -fPIE -Wall
-LDFLAGS?=-fPIC -fPIE -pie
+CFLAGS?=-Os -O2
 
-CFLAGS+=-Os -O2
+CFLAGS+=-fPIC -fPIE -Wall
+LDFLAGS+=-fPIC -fPIE -pie -lssl -lm -lcrypto
+
 
 all: config.h sup
 
@@ -22,8 +23,16 @@ sup.o: config.h sup.c
 sup: sup.o
 	${CC} ${LDFLAGS} sup.o -o sup
 
+test: CFLAGS+=-std=gnu99 -ggdb
+test: test.o
+	${CC} ${LDFLAGS} $< -o test
+
+debug: CFLAGS+=-ggdb
+debug: sup.o
+	${CC} ${LDFLAGS} sup.o -o sup
+
 clean:
-	rm -f sup.o sup
+	rm -f *.o sup test
 
 mrproper: clean
 	rm -f config.h
