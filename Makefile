@@ -1,10 +1,15 @@
 CC?=gcc
+LDD?=ld
 DESTDIR?=
-PREFIX?=/usr
-VERSION=0.1
+PREFIX?=/usr/local
+VERSION=0.2
 USER=root
 GROUP=root
-CFLAGS?=-O2 -Wall
+
+CFLAGS?=-fPIC -fPIE -Wall
+LDFLAGS?=-fPIC -fPIE -pie
+
+CFLAGS+=-Os -O2
 
 all: config.h sup
 
@@ -12,7 +17,7 @@ config.h:
 	cp config.def.h config.h
 
 sup.o: config.h sup.c
-	${CC} ${CFLAGS} -c sup.c
+	${CC} ${CFLAGS} -c sup.c -DVERSION=${VERSION}
 
 sup: sup.o
 	${CC} ${LDFLAGS} sup.o -o sup
