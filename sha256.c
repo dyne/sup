@@ -18,6 +18,12 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define FLAGSONLY 1
+#include "config.h"
+// this is not compiled in if HASH is not set
+// meaning the license above doesn't applies.
+#ifdef HASH
+
 #include <string.h>
 
 #include "sha256.h"
@@ -259,6 +265,8 @@ void sha256_finish( sha256_context *ctx, uint8 digest[32] )
     PUT_UINT32( ctx->state[6], digest, 24 );
     PUT_UINT32( ctx->state[7], digest, 28 );
 }
+
+#endif
 
 #ifdef TEST
 

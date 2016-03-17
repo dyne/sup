@@ -1,3 +1,11 @@
+// sup configuration file
+
+#define HASH 1
+
+#define ENFORCE 1
+
+#ifndef FLAGSONLY
+
 #define USER 1000
 #define GROUP -1
 
@@ -6,9 +14,6 @@
 
 #define CHROOT ""
 #define CHRDIR ""
-
-#define ENFORCE 1
-
 
 static struct rule_t rules[] = {
     // allow user to run these programs when found in path location
