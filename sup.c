@@ -159,27 +159,15 @@ int main(int argc, char **argv) {
             if (lstat (cmd, &st) == -1)
                 return error (1, "lstat", "cannot stat program");
             if (st.st_mode & 0022)
-                return error (1, "stat", "cannot run binaries others can write.");
+                return error (1, "perm", "cannot run binaries others can write.");
 #endif
 
             if (uid != SETUID && rules[i].uid != -1 && rules[i].uid != uid)
-                return error (1, "urule", "user does not match");
+                return error (1, "uid", "user does not match");
 
             if (gid != SETGID && rules[i].gid != -1 && rules[i].gid != gid)
-                return error (1, "grule", "group id does not match");
+                return error (1, "gid", "group id does not match");
 
-            if (setuid (SETUID) == -1 || setgid (SETGID) == -1 ||
-                seteuid (SETUID) == -1 || setegid (SETGID) == -1)
-                return error (1, "set[e][ug]id", strerror (errno));
-
-#ifdef CHROOT
-            if (*CHROOT)
-                if (chdir (CHROOT) == -1 || chroot (".") == -1)
-                    return error (1, "chroot", strerror (errno));
-            if (*CHRDIR)
-                if (chdir (CHRDIR) == -1)
-                    return error (1, "chdir", strerror (errno));
-#endif
 
 #ifdef HASH
             if( strlen(rules[i].hash) ) {
@@ -214,6 +202,21 @@ int main(int argc, char **argv) {
                 }
             }
 #endif
+
+            // privilege escalation done here
+            if (setuid (SETUID) == -1 || setgid (SETGID) == -1 ||
+                seteuid (SETUID) == -1 || setegid (SETGID) == -1)
+                return error (1, "set[e][ug]id", strerror (errno));
+
+#ifdef CHROOT
+            if (*CHROOT)
+                if (chdir (CHROOT) == -1 || chroot (".") == -1)
+                    return error (1, "chroot", strerror (errno));
+            if (*CHRDIR)
+                if (chdir (CHRDIR) == -1)
+                    return error (1, "chdir", strerror (errno));
+#endif
+
             ret = execv (cmd, &argv[1]);
             return error (ret, "execv", strerror (errno));
         }
