@@ -45,10 +45,10 @@ static struct rule_t rules[] = {
 ```
 Fields are organized as following:
 
-| UID | GUID | binary name | binary path | hash (optional) |
+| USER | GGROUP | binary name | binary path | hash (optional) |
 
-- `UID` is the numeric id which must own the binary for authorized execution
-- `GID` is the numeric group id which must own the binary for authorized execution (can be -1 for none)
+- `USER`  is the numeric id of the user authorized to execute the binary as superuser
+- `GROUP` is the numeric group  of the user authorized to execute the binary as superuser (-1 for none)
 - `hash` can be computed before build using sha256sum (GNU coreutils)
 
 using `sup -l` the configuration can be displayed at runtime.
