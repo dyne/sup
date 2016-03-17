@@ -1,4 +1,4 @@
-/*  sup 0.3
+/*  sup 1.0
  *
  *  (c) 2016 Dyne.org Foundation, Amsterdam
  *
@@ -7,21 +7,20 @@
  *  2016      Denis Roio <jaromil@dyne.org> (current maintainer)
  *
  * This source code is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Public License as published
- * by the Free Software Foundation; either version 3 of the License,
- * or (at your option) any later version.
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 3 of
+ * the License, or (at your option) any later version.
  *
  * This source code is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * Please refer to the GNU Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Please refer
+ * to the GNU Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU Public License along with
- * this source code; if not, write to:
- * Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this source code; if not, write to: Free
+ * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-
 
 #include <errno.h>
 #include <unistd.h>
@@ -30,9 +29,10 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#ifndef STATIC
 #include <sys/types.h>
 #include <pwd.h>
-
+#endif
 
 struct rule_t {
     int uid;
