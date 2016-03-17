@@ -11,7 +11,7 @@ CFLAGS?=-Os -O2
 all: shared
 
 shared: CFLAGS+=-fPIC -fPIE -Wall
-shared: LDFLAGS=-fPIC -fPIE -pie -lcrypto
+shared: LDFLAGS=-fPIC -fPIE -pie
 shared: config.h sup.o sha256.o
 	${CC} ${LDFLAGS} sup.o sha256.o -o sup
 
