@@ -72,8 +72,8 @@ configuration, hardcoded at compile time. sha256.c is optional and
 provides the hashing functionality if the define HASH is set.
 
 sup is written in ANSI C with POSIX1.b compliancy for GNU/Linux and
-BSD systems. it uses execv() setuid/gid for privilege escalation and
-execv() to launch processes as superuser.
+BSD systems. it uses `setuid/gid` for privilege escalation and
+`execv()` to launch processes as superuser.
 
 ## licensing
 
@@ -82,9 +82,9 @@ sup is copyleft software licensed as GNU Lesser Public License
 into GNU GPLv2 because of the sha256 component.
 
 ```
-sup is copyright (c) 2009-2011 by pancake of nopcode.org
-                 (c) 2016      by jaromil of dyne.org
+sup is copyleft (c) 2009-2011 by pancake of nopcode.org
+                (c) 2016      by jaromil of dyne.org
 
 the FIPS-180-2 sha-256 implementation optionally included in sup is
-copyright (c) 2001-2003 by Christophe Devine
+copyleft (c) 2001-2003 by Christophe Devine
 ```
