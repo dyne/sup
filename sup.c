@@ -29,10 +29,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-#ifndef STATIC
-#include <sys/types.h>
 #include <pwd.h>
-#endif
 
 struct rule_t {
     int uid;
@@ -54,9 +51,14 @@ struct rule_t {
 
 #define MAXBINSIZE 10485760 // 10 MiBs
 
-static int error(int ret, const char *org, const char *str) {
-    fprintf (stderr, "%s%s%s\n", org?org:"", org?": ":"", str);
-    return ret;
+/* Always return 1 on error, conforming to standard shell checks.
+   Reason of error is described by stderr text before colon,
+   extended reason can be provided or falls back to errno. */
+static int error(const char *code, const char *reason) {
+    fprintf (stderr, "%s: %s\n",
+             code? code : "",
+             reason? reason : strerror (errno));
+    exit(1);
 }
 
 static char *getpath(const char *str) {
@@ -81,8 +83,8 @@ static char *getpath(const char *str) {
 int main(int argc, char **argv) {
 
     static char cmd[MAXCMD];
-    struct passwd *pw = NULL;
-    int i, uid, gid, ret;
+    struct passwd *pw;
+    int i, uid, gid;
 
 #ifdef HASH
     FILE *fd;
@@ -110,12 +112,10 @@ int main(int argc, char **argv) {
         fprintf(stdout,"User\tUID\tGID\t%10s%25s\n",
                 "Command","Forced PATH");
         for (i = 0; rules[i].cmd != NULL; i++) {
-#ifndef STATIC
             /* Using 'getpwuid' in statically linked applications
                requires at runtime the shared libraries from the glibc
-               version used for linking */
+               version used for linking. But not in case of musl-libc. */
             pw = getpwuid( rules[i].uid );
-#endif
             fprintf (stdout, "%s\t%d\t%d%16s%25s\n",
                      pw?pw->pw_name:"", rules[i].uid, rules[i].gid,
                      rules[i].cmd, rules[i].path);
@@ -135,14 +135,14 @@ int main(int argc, char **argv) {
     uid = getuid ();
     gid = getgid ();
     // get the username string from /etc/passwd
-#ifndef STATIC
-    pw = getpwuid( uid );
-#endif
+
     // copy the execv argument locally
     snprintf(cmd,MAXCMD,"%s",argv[1]);
 
-    fprintf(stderr,"sup %s called by %s(%d) gid(%d)\n",
-            cmd, pw?pw->pw_name:"", uid, gid);
+    pw = getpwuid( uid );
+    /* one could maintain a log of calls here
+       fprintf(stderr,"sup %s called by %s(%d) gid(%d)\n",
+               cmd, pw?pw->pw_name:"", uid, gid); */
 
     for (i = 0; rules[i].cmd != NULL; i++) {
 
@@ -154,19 +154,19 @@ int main(int argc, char **argv) {
                 if (*argv[1]=='.' || *argv[1]=='/')
                     snprintf(cmd,MAXCMD,"%s",argv[1]);
                 else if (snprintf(cmd,MAXCMD,"%s",getpath(argv[1]))<0)
-                    return error (1, "execv", "cannot find program");
+                    return error("execv", "cannot find program");
             } else snprintf(cmd,MAXCMD,"%s",rules[i].path);
             if (lstat (cmd, &st) == -1)
-                return error (1, "lstat", "cannot stat program");
+                return error("lstat", "cannot stat program");
             if (st.st_mode & 0022)
-                return error (1, "perm", "cannot run binaries others can write.");
+                return error("perm", "cannot run binaries others can write.");
 #endif
 
             if (uid != SETUID && rules[i].uid != -1 && rules[i].uid != uid)
-                return error (1, "uid", "user does not match");
+                return error("uid", "user does not match");
 
             if (gid != SETGID && rules[i].gid != -1 && rules[i].gid != gid)
-                return error (1, "gid", "group id does not match");
+                return error("gid", "group id does not match");
 
 
 #ifdef HASH
@@ -174,18 +174,18 @@ int main(int argc, char **argv) {
                 int c;
 
                 if(st.st_size>MAXBINSIZE)
-                    error(1, "binsize", "cannot check hash of file, size too large");
+                    error("binsize", "cannot check hash of file, size too large");
 
                 fd = fopen(cmd,"r");
-                if(!fd) error(1, "fopen", "cannot read binary file");
+                if(!fd) error("fopen", "cannot read binary file");
 
                 buf = malloc(st.st_size);
-                if(!buf) error(1, "malloc", "cannot allocate memory");
+                if(!buf) error("malloc", "cannot allocate memory");
 
 
                 len = fread(buf,1,st.st_size,fd);
                 if(len != st.st_size) {
-                    error(1, "fread", "cannot read from binary file");
+                    error("fread", "cannot read from binary file");
                     free(buf); fclose(fd); }
 
                 sha256_starts(&sha);
@@ -198,7 +198,7 @@ int main(int argc, char **argv) {
 
                 if(strncmp(rules[i].hash, output, 64)!=0) {
                     fprintf(stderr,"%s\n%s\n", rules[i].hash, output);
-                    return error (1, "hash", "hash does not match");
+                    return error("hash", "hash does not match");
                 }
             }
 #endif
@@ -206,21 +206,24 @@ int main(int argc, char **argv) {
             // privilege escalation done here
             if (setuid (SETUID) == -1 || setgid (SETGID) == -1 ||
                 seteuid (SETUID) == -1 || setegid (SETGID) == -1)
-                return error (1, "set[e][ug]id", strerror (errno));
+                return error("set[e][ug]id", NULL);
 
 #ifdef CHROOT
             if (*CHROOT)
                 if (chdir (CHROOT) == -1 || chroot (".") == -1)
-                    return error (1, "chroot", strerror (errno));
+                    return error("chroot", NULL);
             if (*CHRDIR)
                 if (chdir (CHRDIR) == -1)
-                    return error (1, "chdir", strerror (errno));
+                    return error("chdir", NULL);
 #endif
 
-            ret = execv (cmd, &argv[1]);
-            return error (ret, "execv", strerror (errno));
+            execv (cmd, &argv[1]);
+            // execv returns only on errors
+            error("execv", NULL);
         }
     }
 
-    return error (1, NULL, "Sorry");
+    // be polite
+    fprintf(stderr,"Sorry.\n");
+    exit(1);
 }
