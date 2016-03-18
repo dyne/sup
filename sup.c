@@ -99,11 +99,37 @@ int main(int argc, char **argv) {
     char output[65];
 #endif
 
+    int target_uid=0;
+    int target_gid=0;
+
     // parse commandline options
     int opt;
-    while((opt = getopt(argc, argv, "+hvdl")) != -1) {
+    while((opt = getopt(argc, argv, "+hvdlu:g:")) != -1) {
 
         switch(opt) {
+
+        case 'u':
+            {
+                struct passwd *puid;
+                errno=0;
+                puid=getpwnam(optarg);
+                if(!puid && errno) error("uid_getpwnam",NULL);
+                if(puid) target_uid=puid->pw_uid;
+            }
+            break;
+
+        case 'g':
+            {
+                struct passwd *pgid;
+                errno=0;
+                pgid=getpwnam(optarg);
+                if(!pgid && errno) error("gid_getpwnam",NULL);
+                if(pgid) target_gid=pgid->pw_gid;
+            }
+            break;
+
+            target_gid=atol(optarg);
+            break;
 
         case 'h':
             fprintf(stdout, "%s\n", HELP);
@@ -149,11 +175,11 @@ int main(int argc, char **argv) {
 
     uid = getuid ();
     gid = getgid ();
-    // get the username string from /etc/passwd
 
     // copy the execv argument locally
     snprintf(cmd,MAXCMD,"%s",argv[optind]);
 
+    // get the username string from /etc/passwd
     pw = getpwuid( uid );
     /* one could maintain a log of calls here */
        fprintf(stderr,"sup %s called by %s(%d) gid(%d)\n",
@@ -179,10 +205,14 @@ int main(int argc, char **argv) {
                 return error("perm", "cannot run binaries others can write.");
 #endif
 
-            if (uid != SETUID && rules[i].uid != -1 && rules[i].uid != uid)
+            if (uid != SETUID
+                && rules[i].uid != -1
+                && rules[i].uid != uid)
                 return error("uid", "user does not match");
 
-            if (gid != SETGID && rules[i].gid != -1 && rules[i].gid != gid)
+            if (gid != SETGID
+                && rules[i].gid != -1
+                && rules[i].gid != gid)
                 return error("gid", "group id does not match");
 
 
@@ -196,10 +226,10 @@ int main(int argc, char **argv) {
                 fd = fopen(cmd,"r");
                 if(!fd) error("fopen", "cannot read binary file");
 
+                // TODO: split the read in chunks and remove alloc
                 buf = malloc(st.st_size);
                 if(!buf) error("malloc", "cannot allocate memory");
 
-                // TODO: split the read in chunks and remove MAXBINSIZE
                 len = fread(buf,1,st.st_size,fd);
                 if(len != st.st_size) {
                     error("fread", "cannot read from binary file");
@@ -221,12 +251,17 @@ int main(int argc, char **argv) {
 #endif
 
             // privilege escalation done here
-            if (setuid (SETUID) == -1  || setgid (SETGID) == -1 ||
-                seteuid (SETUID) == -1 || setegid (SETGID) == -1)
-                return error("set[e][ug]id", NULL);
+            if (setuid (target_uid) <0)
+                return error("setuid",NULL);
+            if (setgid (target_gid) <0)
+                return error("setgid",NULL);
+            if (seteuid (target_uid) <0)
+                return error("seteuid",NULL);
+            if (setegid (target_gid) <0)
+                return error("setegid",NULL);
 
 #ifdef CHROOT
-            if (*CHROOT)
+            if (*CHROOT && (target_uid==0))
                 if (chdir (CHROOT) == -1 || chroot (".") == -1)
                     return error("chroot", NULL);
             if (*CHRDIR)
@@ -245,6 +280,7 @@ int main(int argc, char **argv) {
                     int fd = open("/dev/tty", O_RDWR);
                     ioctl(fd, TIOCNOTTY, 0);
                     close(fd);
+                    chdir("/");
                     umask(022); // secure default
                     setpgid(0,0);  // process group
                     fd=open("/dev/null", O_RDWR); // stdin
