@@ -96,40 +96,52 @@ int main(int argc, char **argv) {
     char output[65];
 #endif
 
-    if (argc < 2 || !strncmp (argv[1], "-h", 2)) {
-        fprintf(stdout, "%s\n", HELP);
-        return (0);
-    }
+    // parse commandline options
+    int opt;
+    while((opt = getopt(argc, argv, "+hvdl")) != -1) {
 
-    if (!strncmp (argv[1], "-v", 2)) {
-        fprintf(stdout, "sup %.1f - small and beautiful superuser tool\n", VERSION);
-        // "sup 0.1 pancake <nopcode.org> copyleft 2011"
-        return (0);
-    }
+        switch(opt) {
 
-    if (!strcmp (argv[1], "-l")) {
-        fprintf(stdout,"List of compiled in authorizations:\n\n");
-        fprintf(stdout,"User\tUID\tGID\t%10s%25s\n",
-                "Command","Forced PATH");
-        for (i = 0; rules[i].cmd != NULL; i++) {
-            /* Using 'getpwuid' in statically linked applications
-               requires at runtime the shared libraries from the glibc
-               version used for linking. But not in case of musl-libc. */
-            pw = getpwuid( rules[i].uid );
-            fprintf (stdout, "%s\t%d\t%d%16s%25s\n",
-                     pw?pw->pw_name:"", rules[i].uid, rules[i].gid,
-                     rules[i].cmd, rules[i].path);
-        }
-        fprintf(stdout,"\nFlags: %s %s %s %s\n",
+        case 'h':
+            fprintf(stdout, "%s\n", HELP);
+            exit (0);
+
+        case 'v':
+            fprintf(stdout, "sup %.1f - small and beautiful superuser tool\n", VERSION);
+            exit (0);
+
+        case 'd':
+            fork_daemon=1;
+            break;
+
+        case 'l':
+            fprintf(stdout,"List of compiled in authorizations:\n\n");
+            fprintf(stdout,"User\tUID\tGID\t%s\t\t%s\n",
+                    "Command","Forced PATH");
+            for (i = 0; rules[i].cmd != NULL; i++) {
+                /* Using 'getpwuid' in statically linked applications
+                   requires at runtime the shared libraries from the glibc
+                   version used for linking. But not in case of musl-libc. */
+                pw = getpwuid( rules[i].uid );
+                fprintf (stdout, "%s\t%d\t%d\t%s\t%s\n",
+                         pw?pw->pw_name:"", rules[i].uid, rules[i].gid,
+                         rules[i].cmd, rules[i].path);
 #ifdef HASH
-                HASH?"HASH":"",
-#else
-                "",
+                fprintf(stdout, "sha256: %s\n\n",rules[i].hash);
 #endif
-                ENFORCE?"ENFORCE":"",
-                strlen(CHROOT)?"CHROOT":"",
-                strlen(CHRDIR)?"CHRDIR":"");
-        return 0;
+            }
+            fprintf(stdout,"\nFlags: %s %s %s %s\n",
+#ifdef HASH
+                    HASH?"HASH":"",
+#else
+                    "",
+#endif
+                    ENFORCE?"ENFORCE":"",
+                    strlen(CHROOT)?"CHROOT":"",
+                    strlen(CHRDIR)?"CHRDIR":"");
+            exit (0);
+        }
+
     }
 
     uid = getuid ();
@@ -137,23 +149,25 @@ int main(int argc, char **argv) {
     // get the username string from /etc/passwd
 
     // copy the execv argument locally
-    snprintf(cmd,MAXCMD,"%s",argv[1]);
+    snprintf(cmd,MAXCMD,"%s",argv[optind]);
 
     pw = getpwuid( uid );
-    /* one could maintain a log of calls here
+    /* one could maintain a log of calls here */
        fprintf(stderr,"sup %s called by %s(%d) gid(%d)\n",
-               cmd, pw?pw->pw_name:"", uid, gid); */
+               cmd, pw?pw->pw_name:"", uid, gid);
 
     for (i = 0; rules[i].cmd != NULL; i++) {
 
-        if (*rules[i].cmd=='*' || !strcmp (argv[1], rules[i].cmd)) {
+        if (*rules[i].cmd=='*'
+            || !strcmp (cmd, rules[i].cmd)
+            || !strcmp (cmd, rules[i].path)) {
 
 #if ENFORCE
             struct stat st;
             if (*rules[i].path=='*') {
-                if (*argv[1]=='.' || *argv[1]=='/')
-                    snprintf(cmd,MAXCMD,"%s",argv[1]);
-                else if (snprintf(cmd,MAXCMD,"%s",getpath(argv[1]))<0)
+                if (cmd[1]=='.' || cmd[1]=='/')
+                    snprintf(cmd,MAXCMD,"%s",argv[optind]);
+                else if (snprintf(cmd,MAXCMD,"%s",getpath(argv[optind]))<0)
                     return error("execv", "cannot find program");
             } else snprintf(cmd,MAXCMD,"%s",rules[i].path);
             if (lstat (cmd, &st) == -1)
