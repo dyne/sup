@@ -75,6 +75,32 @@ sup is written in ANSI C with POSIX1.b compliancy for GNU/Linux and
 BSD systems. it uses `setuid/gid` for privilege escalation and
 `execv()` to launch processes as superuser.
 
+## frequently asked questions
+
+### is there a package for sup?
+
+it does not make sense to have a sup package. sup is configured at
+build-time and its built binaries are specific to the task they have
+been built and placed as suid for. sup is a tool for people
+distributing containers, online services, embedded devices and such.
+
+### why not use doas (openbsd)?
+
+sup is different from doas, because doas is
+[http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/doas.conf.5](configured
+at runtime).
+
+### why not use sudo?
+
+same reason as above, sudo is configured at runtime.
+
+### why not use su?
+
+sup is made so that people (or scripts) don't have to type passwords
+every time they need to execute something they are entitled to execute
+as superusers. with su one has to type the root password every time.
+also scripts won't work without interaction.
+
 ## licensing
 
 sup is copyleft software licensed as GNU Lesser Public License
