@@ -3,8 +3,8 @@
  *  (c) 2016 Dyne.org Foundation, Amsterdam
  *
  *  Written by:
- *  2009-2011 pancake <nopcode.org>         (first author)
- *  2016      Denis Roio <jaromil@dyne.org> (current maintainer)
+ *  2009-2011 pancake <nopcode.org>
+ *  2016      Denis Roio <jaromil@dyne.org>
  *
  * This source code is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -51,7 +51,7 @@ struct rule_t {
 #define HELP "sup [-hldv] [cmd ..]"
 
 #define MAXCMD 512
-
+#define MAXFILEPATH 4096
 #define MAXBINSIZE 10485760 // 10 MiBs
 
 /* Always return 1 on error, conforming to standard shell checks.
@@ -66,7 +66,7 @@ static int error(const char *code, const char *reason) {
 
 static char *getpath(const char *str) {
     struct stat st;
-    static char file[4096];
+    static char file[MAXFILEPATH];
     char *p, *path = getenv ("PATH");
     if (path)
         for (p = path; *p; p++) {
@@ -96,19 +96,24 @@ int main(int argc, char **argv) {
     unsigned char *buf;
     size_t len;
     sha256_context sha;
-
     unsigned char digest[32];
     char output[65];
 #endif
+
+    char pidfile[MAXFILEPATH];
 
     int target_uid=0;
     int target_gid=0;
 
     // parse commandline options
     int opt;
-    while((opt = getopt(argc, argv, "+hvdlu:g:")) != -1) {
+    while((opt = getopt(argc, argv, "+hvdlu:g:p:")) != -1) {
 
         switch(opt) {
+
+        case 'p':
+            snprintf(pidfile,MAXFILEPATH,"%s",optarg);
+            break;
 
         case 'u':
             {
@@ -128,9 +133,6 @@ int main(int argc, char **argv) {
                 if(!pgid && errno) error("gid_getpwnam",NULL);
                 if(pgid) target_gid=pgid->pw_gid;
             }
-            break;
-
-            target_gid=atol(optarg);
             break;
 
         case 'h':
@@ -305,6 +307,13 @@ int main(int argc, char **argv) {
                     dup(fd); // stderr
 
                 } else {
+                    /* save the pid of the forked child. beware this
+                       does not work with some daemons that follow up
+                       with more forks. */
+                    FILE *fpid = fopen(pidfile,"w");
+                    fprintf(fpid,"%u\n",pid);
+                    fclose(fpid);
+
                     // leave us kids alone
                     _exit(0);
                 }
