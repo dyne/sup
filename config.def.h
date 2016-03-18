@@ -2,8 +2,6 @@
 
 #define HASH 1
 
-#define ENFORCE 1
-
 #ifndef FLAGSONLY
 
 #define USER 1000

@@ -163,13 +163,12 @@ int main(int argc, char **argv) {
                 fprintf(stdout, "sha256: %s\n\n",rules[i].hash);
 #endif
             }
-            fprintf(stdout,"\nFlags: %s %s %s %s\n",
+            fprintf(stdout,"\nFlags: %s %s %s\n",
 #ifdef HASH
                     HASH?"HASH":"",
 #else
                     "",
 #endif
-                    ENFORCE?"ENFORCE":"",
                     strlen(CHROOT)?"CHROOT":"",
                     strlen(CHRDIR)?"CHRDIR":"");
             exit (0);
