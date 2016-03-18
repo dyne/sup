@@ -1,4 +1,4 @@
-/*  sup 1.0
+/*  sup 1.1
  *
  *  (c) 2016 Dyne.org Foundation, Amsterdam
  *
@@ -28,6 +28,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
 
 #include <pwd.h>
 
@@ -45,7 +48,7 @@ struct rule_t {
 #include "sha256.h"
 #endif
 
-#define HELP "sup [-hlv] [cmd ..]"
+#define HELP "sup [-hldv] [cmd ..]"
 
 #define MAXCMD 512
 
@@ -85,7 +88,7 @@ int main(int argc, char **argv) {
     static char cmd[MAXCMD];
     struct passwd *pw;
     int i, uid, gid;
-
+    int fork_daemon = 0;
 #ifdef HASH
     FILE *fd;
     unsigned char *buf;
@@ -196,7 +199,7 @@ int main(int argc, char **argv) {
                 buf = malloc(st.st_size);
                 if(!buf) error("malloc", "cannot allocate memory");
 
-
+                // TODO: split the read in chunks and remove MAXBINSIZE
                 len = fread(buf,1,st.st_size,fd);
                 if(len != st.st_size) {
                     error("fread", "cannot read from binary file");
@@ -218,7 +221,7 @@ int main(int argc, char **argv) {
 #endif
 
             // privilege escalation done here
-            if (setuid (SETUID) == -1 || setgid (SETGID) == -1 ||
+            if (setuid (SETUID) == -1  || setgid (SETGID) == -1 ||
                 seteuid (SETUID) == -1 || setegid (SETGID) == -1)
                 return error("set[e][ug]id", NULL);
 
@@ -231,9 +234,33 @@ int main(int argc, char **argv) {
                     return error("chdir", NULL);
 #endif
 
-            execv (cmd, &argv[1]);
+            if(fork_daemon) {
+
+                pid_t pid;
+                pid = fork();
+                if(pid<0) return error("fork", NULL);
+
+                else if(pid==0) { // child
+
+                    int fd = open("/dev/tty", O_RDWR);
+                    ioctl(fd, TIOCNOTTY, 0);
+                    close(fd);
+                    umask(022); // secure default
+                    setpgid(0,0);  // process group
+                    fd=open("/dev/null", O_RDWR); // stdin
+                    dup(fd); // stdout
+                    dup(fd); // stderr
+
+                } else {
+                    // leave us kids alone
+                    _exit(0);
+                }
+            }
+
+            execv (cmd, &argv[optind]);
             // execv returns only on errors
             error("execv", NULL);
+
         }
     }
 
