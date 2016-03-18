@@ -31,7 +31,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-
+#include <libgen.h>
 #include <pwd.h>
 
 struct rule_t {
@@ -85,8 +85,10 @@ static char *getpath(const char *str) {
 
 int main(int argc, char **argv) {
 
-    static char cmd[MAXCMD];
+    static char fullcmd[MAXCMD];
+    static char *cmd;
     struct passwd *pw;
+    struct stat st;
     int i, uid, gid;
     int fork_daemon = 0;
 #ifdef HASH
@@ -177,33 +179,48 @@ int main(int argc, char **argv) {
     gid = getgid ();
 
     // copy the execv argument locally
-    snprintf(cmd,MAXCMD,"%s",argv[optind]);
+    snprintf(fullcmd,MAXCMD,"%s",argv[optind]);
+    cmd = basename(fullcmd);
 
     // get the username string from /etc/passwd
     pw = getpwuid( uid );
+#ifdef DEBUG
     /* one could maintain a log of calls here */
-       fprintf(stderr,"sup %s called by %s(%d) gid(%d)\n",
-               cmd, pw?pw->pw_name:"", uid, gid);
+    fprintf(stderr,"sup %s called by %s(%d) gid(%d)\n",
+            cmd, pw?pw->pw_name:"", uid, gid);
+#endif
 
     for (i = 0; rules[i].cmd != NULL; i++) {
 
-        if (*rules[i].cmd=='*'
-            || !strcmp (cmd, rules[i].cmd)
-            || !strcmp (cmd, rules[i].path)) {
+        if (*rules[i].cmd == '*' || !strcmp (cmd, rules[i].cmd)) {
 
-#if ENFORCE
-            struct stat st;
-            if (*rules[i].path=='*') {
-                if (cmd[1]=='.' || cmd[1]=='/')
-                    snprintf(cmd,MAXCMD,"%s",argv[optind]);
-                else if (snprintf(cmd,MAXCMD,"%s",getpath(argv[optind]))<0)
-                    return error("execv", "cannot find program");
-            } else snprintf(cmd,MAXCMD,"%s",rules[i].path);
-            if (lstat (cmd, &st) == -1)
+            if (*rules[i].path != '*') {
+
+                if((fullcmd[0]=='.')||(fullcmd[0]=='/')) {
+                    if( strcmp(rules[i].path,fullcmd) )
+                        return error("path","path not matching");
+
+                } else { // not a full path, see if getpath matches
+                    snprintf(fullcmd,MAXCMD,"%s",getpath(cmd));
+                    if( strcmp(rules[i].path,fullcmd) )
+                        return error("path","path not matching");
+                }
+
+            } else // rules path is open '*'
+                if((fullcmd[0]!='.')&&(fullcmd[0]!='/'))
+                    snprintf(fullcmd,MAXCMD,"%s",getpath(cmd));
+
+#ifdef DEBUG
+            fprintf(stderr,"rule passed\n");
+            fprintf(stderr,"fullcmd: %s\n",fullcmd);
+            fprintf(stderr,"cmd: %s\n",cmd);
+#endif
+
+            if (lstat (fullcmd, &st) == -1)
                 return error("lstat", "cannot stat program");
+
             if (st.st_mode & 0022)
                 return error("perm", "cannot run binaries others can write.");
-#endif
 
             if (uid != SETUID
                 && rules[i].uid != -1
@@ -223,7 +240,7 @@ int main(int argc, char **argv) {
                 if(st.st_size>MAXBINSIZE)
                     error("binsize", "cannot check hash of file, size too large");
 
-                fd = fopen(cmd,"r");
+                fd = fopen(fullcmd,"r");
                 if(!fd) error("fopen", "cannot read binary file");
 
                 // TODO: split the read in chunks and remove alloc
@@ -293,7 +310,7 @@ int main(int argc, char **argv) {
                 }
             }
 
-            execv (cmd, &argv[optind]);
+            execv (fullcmd, &argv[optind]);
             // execv returns only on errors
             error("execv", NULL);
 
