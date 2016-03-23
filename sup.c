@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
     struct passwd *pw;
     struct stat st;
     int i, uid, gid;
-    int fork_daemon = 0;
+
 #ifdef HASH
     FILE *fd;
     unsigned char *buf;
@@ -100,7 +100,10 @@ int main(int argc, char **argv) {
     char output[65];
 #endif
 
-    char pidfile[MAXFILEPATH];
+#ifdef DAEMON
+    int fork_daemon = 0;
+    char pidfile[MAXFILEPATH] = "";
+#endif
 
     int target_uid=0;
     int target_gid=0;
@@ -111,9 +114,11 @@ int main(int argc, char **argv) {
 
         switch(opt) {
 
+#ifdef DAEMON
         case 'p':
             snprintf(pidfile,MAXFILEPATH,"%s",optarg);
             break;
+#endif
 
         case 'u':
             {
@@ -327,12 +332,17 @@ int main(int argc, char **argv) {
                     dup(fd); // stderr
 
                 } else {
-                    /* save the pid of the forked child. beware this
-                       does not work with some daemons that follow up
-                       with more forks. */
-                    FILE *fpid = fopen(pidfile,"w");
-                    fprintf(fpid,"%u\n",pid);
-                    fclose(fpid);
+
+                    // if pidfile is not an empty string (-p is used)
+                    if( strncmp(pidfile,"",MAXFILEPATH) ) {
+                        /* save the pid of the forked child. beware this
+                           does not work with some daemons that follow up
+                           with more forks. */
+                        FILE *fpid = fopen(pidfile,"w");
+                        if(!fpid) error("pidfile", NULL);
+                        fprintf(fpid,"%u\n",pid);
+                        fclose(fpid);
+                    }
 
                     // leave us kids alone
                     _exit(0);
