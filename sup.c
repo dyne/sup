@@ -143,9 +143,11 @@ int main(int argc, char **argv) {
             fprintf(stdout, "sup %.1f - small and beautiful superuser tool\n", VERSION);
             exit (0);
 
+#ifdef DAEMON
         case 'd':
             fork_daemon=1;
             break;
+#endif
 
         case 'l':
             fprintf(stdout,"List of compiled in authorizations:\n\n");
@@ -163,9 +165,14 @@ int main(int argc, char **argv) {
                 fprintf(stdout, "sha256: %s\n\n",rules[i].hash);
 #endif
             }
-            fprintf(stdout,"\nFlags: %s %s %s\n",
+            fprintf(stdout,"\nFlags: %s %s %s %s\n",
 #ifdef HASH
                     HASH?"HASH":"",
+#else
+                    "",
+#endif
+#ifdef DAEMON
+                    DAEMON?"DAEMON":"",
 #else
                     "",
 #endif
@@ -191,50 +198,63 @@ int main(int argc, char **argv) {
             cmd, pw?pw->pw_name:"", uid, gid);
 #endif
 
+    // loop over each rule
     for (i = 0; rules[i].cmd != NULL; i++) {
 
+        /// COMMAND AND PATH CHECK
+        // if command is * or matching the rule
         if (*rules[i].cmd == '*' || !strcmp (cmd, rules[i].cmd)) {
-
+            // if path is locked
             if (*rules[i].path != '*') {
-
+                // and if path is specified
                 if((fullcmd[0]=='.')||(fullcmd[0]=='/')) {
+                    // then check that path matches
                     if( strcmp(rules[i].path,fullcmd) )
                         return error("path","path not matching");
-
-                } else { // not a full path, see if getpath matches
+                // or if path is not specified
+                } else { // get the default path with our getpath()
                     snprintf(fullcmd,MAXCMD,"%s",getpath(cmd));
+                    // check if the default environment path matches
                     if( strcmp(rules[i].path,fullcmd) )
                         return error("path","path not matching");
                 }
-
-            } else // rules path is open '*'
+            // or if path is not locked
+            } else // and if path is not specified, getpath()
                 if((fullcmd[0]!='.')&&(fullcmd[0]!='/'))
                     snprintf(fullcmd,MAXCMD,"%s",getpath(cmd));
 
 #ifdef DEBUG
-            fprintf(stderr,"rule passed\n");
+            fprintf(stderr,"path check passed\n");
             fprintf(stderr,"fullcmd: %s\n",fullcmd);
             fprintf(stderr,"cmd: %s\n",cmd);
 #endif
 
+            /// COMMAND BINARY CHECK
+            // command does not exist as binary on the filesystem
             if (lstat (fullcmd, &st) == -1)
                 return error("lstat", "cannot stat program");
-
+            // command has wrong permissions (writable to others)
             if (st.st_mode & 0022)
                 return error("perm", "cannot run binaries others can write.");
-
+            // user UID is not root
             if (uid != SETUID
+                // and is not unlocked
                 && rules[i].uid != -1
+                // and is not the locked UID
                 && rules[i].uid != uid)
                 return error("uid", "user does not match");
 
+            // user GID is not root
             if (gid != SETGID
+                // and is not unlocked
                 && rules[i].gid != -1
+                // and is not the locked GID
                 && rules[i].gid != gid)
                 return error("gid", "group id does not match");
 
 
 #ifdef HASH
+            /// BINARY HASH CHECKSUM
             if( strlen(rules[i].hash) ) {
                 int c;
 
@@ -287,6 +307,7 @@ int main(int argc, char **argv) {
                     return error("chdir", NULL);
 #endif
 
+#ifdef DAEMON
             if(fork_daemon) {
 
                 pid_t pid;
@@ -317,7 +338,9 @@ int main(int argc, char **argv) {
                     _exit(0);
                 }
             }
+#endif
 
+            // turn current process into the execution of command
             execv (fullcmd, &argv[optind]);
             // execv returns only on errors
             error("execv", NULL);
