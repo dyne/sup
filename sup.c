@@ -82,20 +82,68 @@ static char *getpath(const char *str) {
     return NULL;
 }
 
+#ifdef HASH
+
+#define CHUNK 1048576 // 1MiB
+static uint32 getsha(const char *path, unsigned char *dest) {
+    static sha256_context sha;
+
+    unsigned char buf[CHUNK]; // 1 MiB
+    uint32 len, tot;
+    FILE *fd;
+
+    fd = fopen(path,"r");
+    if(!fd) error("fopen", "cannot read binary file");
+
+    sha256_starts(&sha);
+    clearerr(fd);
+    len=0;
+    tot=0;
+
+    do {
+        // read chunk of data in binary file
+        len = fread(buf, 1, CHUNK, fd);
+        if(!len) break; // NULL read
+        tot+=len;
+        if(len<CHUNK) break; // EOF reached
+
+        // compute sha256 of chunk
+        sha256_update(&sha, buf, len);
+
+    } while(len>0);
+
+    // check file descriptor for errors
+    if(ferror(fd)) {
+        fclose(fd);
+        error("fread", "error reading binary file");
+    }
+    fclose(fd);
+
+    // compute last chunk
+    if(len>0) sha256_update(&sha, buf, len);
+
+    // finish and save result in *dest
+    sha256_finish(&sha, dest);
+
+    return(tot);
+}
+
+#endif
+
 
 int main(int argc, char **argv) {
 
     static char fullcmd[MAXCMD];
     static char *cmd;
+
     struct passwd *pw;
     struct stat st;
-    int i, uid, gid;
+
+    static int i, uid, gid;
+    static int target_uid=0;
+    static int target_gid=0;
 
 #ifdef HASH
-    FILE *fd;
-    unsigned char *buf;
-    size_t len;
-    sha256_context sha;
     unsigned char digest[32];
     char output[65];
 #endif
@@ -104,9 +152,6 @@ int main(int argc, char **argv) {
     int fork_daemon = 0;
     char pidfile[MAXFILEPATH] = "";
 #endif
-
-    int target_uid=0;
-    int target_gid=0;
 
     // parse commandline options
     int opt;
@@ -184,15 +229,18 @@ int main(int argc, char **argv) {
                     strlen(CHROOT)?"CHROOT":"",
                     strlen(CHRDIR)?"CHRDIR":"");
             exit (0);
-        }
 
-    }
+        } // switch(opt)
 
+    } // getopt
+
+    // get the called UID and GID
     uid = getuid ();
     gid = getgid ();
 
     // copy the execv argument locally
     snprintf(fullcmd,MAXCMD,"%s",argv[optind]);
+    // save a pointer to basename string in cmd
     cmd = basename(fullcmd);
 
     // get the username string from /etc/passwd
@@ -262,25 +310,14 @@ int main(int argc, char **argv) {
             /// BINARY HASH CHECKSUM
             if( strlen(rules[i].hash) ) {
                 int c;
+                uint32 sizeread;
 
                 if(st.st_size>MAXBINSIZE)
                     error("binsize", "cannot check hash of file, size too large");
 
-                fd = fopen(fullcmd,"r");
-                if(!fd) error("fopen", "cannot read binary file");
-
-                // TODO: split the read in chunks and remove alloc
-                buf = malloc(st.st_size);
-                if(!buf) error("malloc", "cannot allocate memory");
-
-                len = fread(buf,1,st.st_size,fd);
-                if(len != st.st_size) {
-                    error("fread", "cannot read from binary file");
-                    free(buf); fclose(fd); }
-
-                sha256_starts(&sha);
-                sha256_update(&sha, buf, (uint32)len);
-                sha256_finish(&sha, digest);
+                sizeread = getsha(fullcmd, digest);
+                if(sizeread != st.st_size)
+                    error("getsha", "binary file size differs from size read");
 
                 for(c = 0; c<32; c++)
                     sprintf(output + (c * 2),"%02x",digest[c]);
