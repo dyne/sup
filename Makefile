@@ -2,7 +2,7 @@ CC?=gcc
 LDD?=ld
 DESTDIR?=
 PREFIX?=/usr/local
-VERSION=1.0
+VERSION=1.1
 USER=root
 GROUP=root
 
@@ -36,7 +36,7 @@ config.h:
 	cp config.def.h config.h
 
 .c.o:
-	$(CC) $(CFLAGS) -c $< -o $@ -DVERSION=${VERSION}
+	$(CC) $(CFLAGS) -c $< -o $@ -DVERSION=\"${VERSION}\"
 
 clean:
 	rm -f *.o sup test

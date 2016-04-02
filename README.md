@@ -35,6 +35,16 @@ sup's configuration resides in `config.h` and should be set before
 building. here below an intuitive example:
 
 ```c
+// sup's configuration file
+// need sup to be re-compiled for any change to be effective
+
+/// un/comment flags below to remove functionalities
+#define HASH 1
+#define DAEMON 1
+// #define DEBUG 1
+
+#ifndef FLAGSONLY
+
 #define USER 1000
 #define GROUP -1
 
@@ -43,10 +53,6 @@ building. here below an intuitive example:
 
 #define CHROOT ""
 #define CHRDIR ""
-
-#define HASH 1
-
-#define ENFORCE 1
 
 static struct rule_t rules[] = {
     // allow user to run these programs when found at a specific path location
@@ -60,6 +66,7 @@ static struct rule_t rules[] = {
     { USER, GROUP, "*",        "*"},
     { 0 }, // end of configuration
 };
+#endif
 ```
 
 fields are organized as follows:
@@ -88,8 +95,8 @@ evaluation purposes, with dynamic links to the `libm` and `libc`
 libraries installed system-wide.
 
 for production use, sup should be built as a static binary: this is
-easily done by first installing `musl-libc` in its default location and
-then using the `make musl` command.
+easily done by first installing `musl-libc` in its default location
+(`/usr/local/musl`) and then using the `make musl` command inside sup.
 
 ## technical details
 
@@ -100,9 +107,11 @@ sup consists of 3 files:
 - `sha256.c` is optional and provides the hashing functionality if
   `# define HASH 1` is set.
 
-sup is written in ansi c with posix1.b compliance for gnu/linux and bsd
-systems. it uses `setuid/gid` for privilege escalation and `execv()` to
-launch processes as superuser.
+sup is written in ansi c with posix1.b compliance for gnu/linux and
+bsd systems. it uses `setuid/gid` for privilege escalation and
+`execv()` to launch processes as superuser. daemon mode uses `fork()`
+to send processes in the background with `NOTTY` and `stdin/out/err`
+file descriptors set to `/dev/null`.
 
 ## frequently asked questions
 
@@ -131,6 +140,12 @@ every time they need to execute something they are entitled to execute
 as superusers. with `su` one has to type the root password every time.
 also scripts won't work without interaction.
 
+### is sup still a suckless tool?
+
+this new code hasn't been grinded by the merry folks at suckless yet,
+but pancake has acknowledged this development and, having left
+maintainance, is happy to hand it over to jaromil.
+
 ## licensing
 
 sup is copyleft software licensed as GNU Lesser Public License
@@ -144,3 +159,7 @@ sup is copyleft (c) 2009-2011 by pancake of nopcode.org
 the FIPS-180-2 sha-256 implementation optionally included in sup is
 copyleft (c) 2001-2003 by Christophe Devine
 ```
+
+## post scriptum
+
+systemd sucks.

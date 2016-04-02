@@ -48,7 +48,31 @@ struct rule_t {
 #include "sha256.h"
 #endif
 
-#define HELP "sup [-hldv] [cmd ..]"
+static const char *HEADER = "sup " VERSION " - small and beautiful superuser tool\n";
+
+static const char *COPYLEFT =
+    "copyright (C) 2016 dyne.org foundation, license GNU GPL v3+\n"
+    "this is free software: you are free to change and redistribute it\n"
+    "for the latest sourcecode go to <https://git.devuan.org/jaromil/sup>\n";
+
+static const char *LICENSE =
+    "this source code is distributed in the hope that it will be useful,\n"
+    "but without any warranty; without even the implied warranty of\n"
+    "merchantability or fitness for a particular purpose.\n"
+    "when in need please refer to <http://dyne.org/support>.\n";
+
+
+static const char *HELP =
+    "Syntax: sup [options] command [arguments...]\n"
+    "\n"
+    "Options:\n"
+    " -l     list compiled-in authorizations and flags\n"
+    " -u     set uid to this user name\n"
+    " -g     set gid to this group name\n"
+    " -d     fork command as background process (daemon)\n"
+    " -p     saves pid of background process to file (daemon)\n"
+    "\n"
+    "Please report bugs to <https://git.devuan.org/jaromil/sup/issues>\n";
 
 #define MAXCMD 512
 #define MAXFILEPATH 4096
@@ -186,11 +210,12 @@ int main(int argc, char **argv) {
             break;
 
         case 'h':
-            fprintf(stdout, "%s\n", HELP);
+            fprintf(stdout, "%s\n%s\n%s", HEADER, COPYLEFT, HELP);
             exit (0);
 
         case 'v':
-            fprintf(stdout, "sup %.1f - small and beautiful superuser tool\n", VERSION);
+            fprintf(stdout, "%s\n%s\n%s", HEADER, COPYLEFT, LICENSE);
+
             exit (0);
 
 #ifdef DAEMON
@@ -200,7 +225,7 @@ int main(int argc, char **argv) {
 #endif
 
         case 'l':
-            fprintf(stdout,"List of compiled in authorizations:\n\n");
+            fprintf(stdout,"%s\n%s\nList of compiled in authorizations:\n\n", HEADER, COPYLEFT);
             fprintf(stdout,"User\tUID\tGID\t%s\t\t%s\n",
                     "Command","Forced PATH");
             for (i = 0; rules[i].cmd != NULL; i++) {
