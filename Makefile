@@ -52,3 +52,7 @@ install:
 	mkdir -p ${DESTDIR}${PREFIX}/share/man/man1
 	sed s,VERSION,${VERSION}, sup.1 \
 	  > ${DESTDIR}${PREFIX}/share/man/man1/sup.1
+
+website: README.md
+	docco -l linear -o website README.md sup.c sha256.c
+	ln -sf README.html website/index.html

@@ -15,6 +15,8 @@ the latest version of sup can be found at
 [https://git.devuan.org/jaromil/sup][origin]
 and on its mirrors at dyne.org and [github.com][m1].
 
+[![software by Dyne.org](https://www.dyne.org/wp-content/uploads/2015/12/software_by_dyne.png)](http://www.dyne.org)
+
 [origin]: https://git.devuan.org/jaromil/sup
 [m1]: https://github.com/dyne/sup
 
