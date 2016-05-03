@@ -11,9 +11,17 @@ portable and self-contained, designed for production use as a static
 binary. sup is a sort of hard-coded `sudo`: it is an ideal companion
 for artisans building small containers and embedded systems.
 
-the latest version of sup can be found at
-[https://git.devuan.org/jaromil/sup][origin]
-and on its mirrors at dyne.org and [github.com][m1].
+sup's new homepage is [sup.dyne.org](https://sup.dyne.org)
+
+sup code can be [read and reviewed on-line](https://sup.dyne.org/sup.html)
+
+stable releases can be downloaded from [files.dyne.org/sup](https://files.dyne.org/sup)
+
+releases are signed with the [maintainer's keys](https://keybase.io/jaromil)
+
+the develpment version of sup can be found at [git.devuan.org/jaromil/sup](https://git.devuan.org/jaromil/sup)
+
+of course there is also a [github mirror](https://github.com/dyne/sup)
 
 [![software by Dyne.org](https://www.dyne.org/wp-content/uploads/2015/12/software_by_dyne.png)](http://www.dyne.org)
 
@@ -150,18 +158,13 @@ maintainance, is happy to hand it over to jaromil.
 
 ## licensing
 
-sup is copyleft software licensed as GNU Lesser Public License
-(LGPLv3). when compiled with hashing capability, its license turns into
-GNU GPLv2 because of the sha256 component.
+sup is copyleft software licensed as gnu lesser public license
+(lgplv3). when compiled with hashing capability, its license turns into
+gnu gplv2+ because of the sha256 component.
 
 ```
 sup is copyleft (c) 2009-2011 by pancake of nopcode.org
-                (c) 2016      by jaromil of dyne.org
-
-the FIPS-180-2 sha-256 implementation optionally included in sup is
-copyleft (c) 2001-2003 by Christophe Devine
+.               (c) 2016      by jaromil of dyne.org
+the fips-180-2 sha-256 implementation optionally included in sup is
+copyleft (c) 2001-2003 by christophe cevine
 ```
-
-## post scriptum
-
-systemd sucks.
