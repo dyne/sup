@@ -1,9 +1,13 @@
-.TH SUP 1 sup\-1.0
+.TH SUP 1 sup\-1.2
 .SH NAME
 sup - a "small is beautiful" tool for UNIX privilege escalation
 .SH SYNOPSIS
 .B sup
-.RB [ \-hlv ]
+[ \fB-h -v\fR ]
+[ \fB-l\fR ]
+[ \fB-u \fIuser\fR \fB-g \fIgroup\fR ]
+[ \fB-b \fB-p \fIpidfile\fR ]
+\fBcommand\fR [ \fBargs...\fR ]
 .SH DESCRIPTION
 sup is a very small and secure C application. it is designed to run as root (with suid bit on) to facilitate the privilege escalation of users to execute certain programs as superuser.
 .P
@@ -14,10 +18,24 @@ all settings in sup are hard-coded at compile time. sup is very portable and sel
 print help message
 .TP
 .B \-l
-list configuration
+list hardcoded configuration
 .TP
 .B \-v
 print version information
+.TP
+.B \-b
+run in daemon mode: fork process to background
+.TP
+.B \-p pidfile
+when in daemon mode, save first pid to file. beware this may not be the exact final pid of the forked process: some programs are more complex and go further forking new pids.
+.TP
+.B \-u username
+username for the target uid in setuid, in case not root. looked up by getpwnam(3) in /etc/passwd.
+.TP
+.B \-g groupname
+groupname for the target gid in setuid, in case not root. looked up by getpwnam(3) in /etc/passwd.
+
+
 .SH AUTHOR
 sup is copyleft software licensed as GNU Lesser Public License
 (LGPLv3). when compiled with the HASH flag on its license turns
