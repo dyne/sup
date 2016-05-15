@@ -1,10 +1,13 @@
-// sup 1.1
+// sup 1.2
 
 //  (c) 2016 Dyne.org Foundation, Amsterdam
 
 //  Written by:
 //  - 2009-2011 pancake <nopcode.org>
 //  - 2016      Denis Roio <jaromil@dyne.org>
+
+// License (LGPLv3)
+// -------
 
 // This source code is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public License
@@ -19,6 +22,10 @@
 // You should have received a copy of the GNU Lesser General Public
 // License along with this source code; if not, write to: Free
 // Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+// Headers
+// -------
 
 #include <errno.h>
 #include <unistd.h>
@@ -45,6 +52,9 @@ struct rule_t {
 #ifdef HASH
 #include "sha256.h"
 #endif
+
+// Help
+// ----
 
 static const char *HEADER = "sup " VERSION " - small and beautiful superuser tool\n";
 
@@ -87,6 +97,9 @@ static int error(const char *code, const char *reason) {
     exit(1);
 }
 
+// Check if binary is found in $PATH
+// --------------------------------
+
 static char *getpath(const char *str) {
     struct stat st;
     static char file[MAXFILEPATH];
@@ -104,6 +117,9 @@ static char *getpath(const char *str) {
         }
     return NULL;
 }
+
+// Compute SHA256 hash of binary
+// -----------------------------
 
 #ifdef HASH
 
@@ -155,6 +171,8 @@ static uint32 getsha(const char *path, unsigned char *dest) {
 
 #endif
 
+// Main()
+// ------
 
 int main(int argc, char **argv) {
 
@@ -277,12 +295,14 @@ int main(int argc, char **argv) {
             cmd, pw?pw->pw_name:"", uid, gid);
 #endif
 
+
+    // Check that all rules match
+    // --------------------------
+
     // loop over each rule
     for (i = 0; rules[i].cmd != NULL; i++) {
 
-        // Command and path check
-        // ----------------------
-        // if command is * or matching the rule
+        // command is * or locked path matches
         if (*rules[i].cmd == '*' || !strcmp (cmd, rules[i].cmd)) {
             // if path is locked
             if (*rules[i].path != '*') {
@@ -313,12 +333,15 @@ int main(int argc, char **argv) {
 
             // Command binary check
             // --------------------
+
             // command does not exist as binary on the filesystem
             if (lstat (fullcmd, &st) == -1)
                 return error("lstat", "cannot stat program");
-            // command has wrong permissions (writable to others)
+
             if (st.st_mode & 0022)
+                // command has wrong permissions (writable to others)
                 return error("perm", "cannot run binaries others can write.");
+
             // user UID is not root
             if (uid != SETUID
                 // and is not unlocked
@@ -358,7 +381,8 @@ int main(int argc, char **argv) {
             }
 #endif
 
-            // privilege escalation done here
+            // Green light to privilege escalation
+            // -----------------------------------
             if (setuid (target_uid) <0)
                 return error("setuid",NULL);
             if (setgid (target_gid) <0)
@@ -376,6 +400,9 @@ int main(int argc, char **argv) {
                 if (chdir (CHRDIR) == -1)
                     return error("chdir", NULL);
 #endif
+
+            // Fork as daemon if desired
+            // -------------------------
 
 #ifdef DAEMON
             if(fork_daemon) {
@@ -402,6 +429,8 @@ int main(int argc, char **argv) {
                     // stderr
                     dup(fd);
 
+                    // Execute in foreground
+                    // ---------------------
                 } else {
 
                     // if pidfile is not an empty string (-p is used)
