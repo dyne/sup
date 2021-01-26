@@ -143,6 +143,8 @@ sup is different from `doas`, because `doas` is
 
 same reason as above, `sudo` is configured at runtime.
 
+also `sudo` is very complex and therefore less secure, for instance [it has been found to be vulnerable to an heap-overflow attack](https://blog.qualys.com/vulnerabilities-research/2021/01/26/cve-2021-3156-heap-based-buffer-overflow-in-sudo-baron-samedit) for a bug that went unnoticed for 10 years. 
+
 ### why not use su?
 
 sup is made so that people (or scripts) don't have to type passwords
